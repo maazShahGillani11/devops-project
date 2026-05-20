@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API = '';
 
 function App() {
   const [items, setItems] = useState([]);
@@ -16,7 +16,7 @@ function App() {
 
   const fetchHealth = async () => {
     try {
-      const res = await fetch(`${API}/api/health`);
+      const res = await fetch('/api/health');
       const data = await res.json();
       setHealth(data);
     } catch (e) {
@@ -26,7 +26,7 @@ function App() {
 
   const fetchItems = async () => {
     try {
-      const res = await fetch(`${API}/api/items`);
+      const res = await fetch('/api/items');
       const data = await res.json();
       setItems(data);
     } catch (e) {}
@@ -34,7 +34,7 @@ function App() {
 
   const addItem = async () => {
     if (!name) return;
-    await fetch(`${API}/api/items`, {
+    await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description })
@@ -45,7 +45,7 @@ function App() {
   };
 
   const deleteItem = async (id) => {
-    await fetch(`${API}/api/items/${id}`, { method: 'DELETE' });
+    await fetch('/api/items/' + id, { method: 'DELETE' });
     fetchItems();
   };
 

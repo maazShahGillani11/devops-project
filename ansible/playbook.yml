@@ -1,0 +1,152 @@
+---
+- name: Configure DevOps Server
+  hosts: devops_servers
+  become: yes
+
+  tasks:
+
+    # ─── System Update ───────────────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install common packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - unzip
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - software-properties-common
+        state: present
+
+    # ─── Docker ──────────────────────────────────────────────────
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add devopsadmin to docker group
+      user:
+        name: devopsadmin
+        groups: docker
+        append: yes
+
+    # ─── Java 21 ─────────────────────────────────────────────────
+    - name: Install Java 21
+      apt:
+        name: openjdk-21-jdk
+        state: present
+
+    # ─── Jenkins ─────────────────────────────────────────────────
+    - name: Download Jenkins GPG key
+      shell: |
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
+        gpg --batch --yes --dearmor -o /tmp/jenkins.gpg && \
+        apt-key import /tmp/jenkins.gpg && \
+        apt-key export 7198F4B714ABFC68 | \
+        gpg --batch --yes --dearmour -o /usr/share/keyrings/jenkins-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/jenkins-keyring.gpg
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+        filename: jenkins
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Create Jenkins systemd override directory
+      file:
+        path: /etc/systemd/system/jenkins.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Set JAVA_HOME for Jenkins to use Java 21
+      copy:
+        dest: /etc/systemd/system/jenkins.service.d/override.conf
+        content: |
+          [Service]
+          Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
+      notify: Reload and restart Jenkins
+
+    - name: Start and enable Jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    # ─── Firewall ────────────────────────────────────────────────
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: "22"
+
+    - name: Allow Jenkins port
+      ufw:
+        rule: allow
+        port: "8080"
+
+    - name: Allow app port
+      ufw:
+        rule: allow
+        port: "3000"
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: allow
+
+    # ─── Verify ──────────────────────────────────────────────────
+    - name: Get Docker version
+      command: docker --version
+      register: docker_ver
+
+    - name: Get Jenkins status
+      command: systemctl is-active jenkins
+      register: jenkins_status
+
+    - name: Print versions
+      debug:
+        msg:
+          - "Docker: {{ docker_ver.stdout }}"
+          - "Jenkins: {{ jenkins_status.stdout }}"
+
+  handlers:
+    - name: Reload and restart Jenkins
+      systemd:
+        name: jenkins
+        state: restarted
+        daemon_reload: yes
