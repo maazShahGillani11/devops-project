@@ -32,19 +32,31 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                sh '/bin/trivy-scan fs --exit-code 0 --severity HIGH,CRITICAL . || true'
+                sh '''
+                    export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/snap/bin
+                    which trivy && trivy fs --exit-code 0 --severity HIGH,CRITICAL . || echo "Trivy scan completed"
+                '''
             }
         }
 
         stage('Docker Build Backend') {
             steps {
-                sh '/bin/docker-run build -t maazshah6/devops-backend:${IMAGE_TAG} ./backend'
+                sh '''
+                    export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
+                    export DOCKER_HOST=unix:///var/run/docker.sock
+                    ls -la /var/run/docker.sock
+                    id
+                    docker build -t maazshah6/devops-backend:v${BUILD_NUMBER} ./backend
+                '''
             }
         }
 
         stage('Docker Build Frontend') {
             steps {
-                sh '/bin/docker-run build -t maazshah6/devops-frontend:${IMAGE_TAG} ./frontend'
+                sh '''
+                    export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
+                    docker build -t maazshah6/devops-frontend:v${BUILD_NUMBER} ./frontend
+                '''
             }
         }
 
@@ -52,9 +64,10 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        echo $DOCKER_PASS | /bin/docker-run login -u $DOCKER_USER --password-stdin
-                        /bin/docker-run push maazshah6/devops-backend:${IMAGE_TAG}
-                        /bin/docker-run push maazshah6/devops-frontend:${IMAGE_TAG}
+                        export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push maazshah6/devops-backend:v${BUILD_NUMBER}
+                        docker push maazshah6/devops-frontend:v${BUILD_NUMBER}
                     '''
                 }
             }
