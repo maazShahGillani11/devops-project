@@ -39,15 +39,15 @@ pipeline {
         stage('Docker Build Backend') {
             steps {
                 sh '''
-                    chmod 666 /var/run/docker.sock || true
-                    /usr/bin/docker build -t ${DOCKER_USERNAME}/devops-backend:${IMAGE_TAG} ./backend
+                    sudo /bin/chmod 666 /var/run/docker.sock
+                    /usr/bin/docker build -t maazshah6/devops-backend:${IMAGE_TAG} ./backend
                 '''
             }
         }
 
         stage('Docker Build Frontend') {
             steps {
-                sh '/usr/bin/docker build -t ${DOCKER_USERNAME}/devops-frontend:${IMAGE_TAG} ./frontend'
+                sh '/usr/bin/docker build -t maazshah6/devops-frontend:${IMAGE_TAG} ./frontend'
             }
         }
 
@@ -56,8 +56,8 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo $DOCKER_PASS | /usr/bin/docker login -u $DOCKER_USER --password-stdin
-                        /usr/bin/docker push ${DOCKER_USERNAME}/devops-backend:${IMAGE_TAG}
-                        /usr/bin/docker push ${DOCKER_USERNAME}/devops-frontend:${IMAGE_TAG}
+                        /usr/bin/docker push maazshah6/devops-backend:${IMAGE_TAG}
+                        /usr/bin/docker push maazshah6/devops-frontend:${IMAGE_TAG}
                     '''
                 }
             }
