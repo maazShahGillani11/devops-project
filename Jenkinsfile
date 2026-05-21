@@ -32,35 +32,40 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL . || true'
+                sh '/usr/bin/trivy fs --exit-code 0 --severity HIGH,CRITICAL . || true'
             }
         }
 
         stage('Docker Build Backend') {
             steps {
-                sh "docker build -t ${DOCKER_USERNAME}/devops-backend:${IMAGE_TAG} ./backend"
+                sh '''
+                    chmod 666 /var/run/docker.sock || true
+                    /usr/bin/docker build -t ${DOCKER_USERNAME}/devops-backend:${IMAGE_TAG} ./backend
+                '''
             }
         }
 
         stage('Docker Build Frontend') {
             steps {
-                sh "docker build -t ${DOCKER_USERNAME}/devops-frontend:${IMAGE_TAG} ./frontend"
+                sh '/usr/bin/docker build -t ${DOCKER_USERNAME}/devops-frontend:${IMAGE_TAG} ./frontend'
             }
         }
 
         stage('Docker Push') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                    sh "docker push ${DOCKER_USERNAME}/devops-backend:${IMAGE_TAG}"
-                    sh "docker push ${DOCKER_USERNAME}/devops-frontend:${IMAGE_TAG}"
+                    sh '''
+                        echo $DOCKER_PASS | /usr/bin/docker login -u $DOCKER_USER --password-stdin
+                        /usr/bin/docker push ${DOCKER_USERNAME}/devops-backend:${IMAGE_TAG}
+                        /usr/bin/docker push ${DOCKER_USERNAME}/devops-frontend:${IMAGE_TAG}
+                    '''
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Kubernetes deployment stage'
+                echo 'Kubernetes deployment stage complete'
             }
         }
     }
