@@ -32,19 +32,19 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                sh '/usr/local/bin/trivy fs --exit-code 0 --severity HIGH,CRITICAL . || true'
+                sh '/bin/trivy-scan fs --exit-code 0 --severity HIGH,CRITICAL . || true'
             }
         }
 
         stage('Docker Build Backend') {
             steps {
-                sh 'docker build -t maazshah6/devops-backend:${IMAGE_TAG} ./backend'
+                sh '/bin/docker-run build -t maazshah6/devops-backend:${IMAGE_TAG} ./backend'
             }
         }
 
         stage('Docker Build Frontend') {
             steps {
-                sh 'docker build -t maazshah6/devops-frontend:${IMAGE_TAG} ./frontend'
+                sh '/bin/docker-run build -t maazshah6/devops-frontend:${IMAGE_TAG} ./frontend'
             }
         }
 
@@ -52,9 +52,9 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push maazshah6/devops-backend:${IMAGE_TAG}
-                        docker push maazshah6/devops-frontend:${IMAGE_TAG}
+                        echo $DOCKER_PASS | /bin/docker-run login -u $DOCKER_USER --password-stdin
+                        /bin/docker-run push maazshah6/devops-backend:${IMAGE_TAG}
+                        /bin/docker-run push maazshah6/devops-frontend:${IMAGE_TAG}
                     '''
                 }
             }
